@@ -358,3 +358,340 @@ void check_bt ()
         } 
         set_time (); 
 } 
+
+
+
+
+//ds3231
+/* 
+ * Author: Innovate Logics
+ * Created on September 3, 2014, 7:58 PM
+ */
+#include <stdio.h>
+#include <stdlib.h>
+#include "config.h"
+#include "lcd.h"
+/*
+ * 
+ */
+#define slave_id 0xd0
+
+unsigned char rx_data=0;
+unsigned char arr_data[7];
+
+//  Function for setting I2C module
+void i2c_setup(){
+//  Making SDA as input bit
+    TRISB0 = 1;
+//  Making SCL as input bit
+    TRISB1 = 1;
+//  Enabling slew rate
+    SSPSTAT = 0x00;
+//  I2C Clock = 400kHz
+    SSPADD  = 0x09;
+    SSPCON2 = 0x00;
+//  Enabling MSSP and I2C master mode, clock
+    SSPCON1 = 0x28;
+}
+//  Funcion for transmitting data to slave
+void i2c_tx(unsigned char address, unsigned char data){
+//  Generate START condition
+    SEN = 1;
+//  Wait for the interrupt flag bit
+    while(SEN == 1 && SSPIF == 0);
+//  Clear the interrupt flag bit
+    SSPIF = 0;
+//  Write slave ID with R/W bit = 0
+    SSPBUF = slave_id;
+//  Wait for the interrupt flag bit
+    while(SSPIF == 0);
+//  Check acknowledgment from slave
+    if(!(ACKSTAT)){
+    //  Clear the interrupt flag bit
+        SSPIF  = 0;
+    //  Write the address to which you want to write data
+        SSPBUF = address;
+    //  Wait for the interrupt flag bit
+        while(SSPIF == 0);
+    //  Check acknowledgment from slave
+        if(!(ACKSTAT)){
+        //  Clear the interrupt flag bit
+            SSPIF = 0;
+        //  Write data
+            SSPBUF = data;
+        //  Wait for the interrupt flag bit
+            while(SSPIF == 0);
+        //  Check acknowledgment from slave
+            if(!(ACKSTAT)){
+            //  Clear the interrupt flag bit
+                SSPIF = 0;
+            //  Generate STOP condition
+                PEN = 1;
+            //  Wait for the interrupt flag bit
+                while(PEN == 1 && SSPIF == 0);
+            //  Clear the interrupt flag bit
+                SSPIF = 0;
+            }
+            else{
+                lcd_display("ERROR");
+            }
+        }
+        else{
+            lcd_display("ERROR");
+        }
+    }
+    else{
+        lcd_display("ERROR");
+    }
+    delay_ms(200);
+}
+//  Funcion for receiving data from slave
+void i2c_rx(unsigned char address){
+//  Generate START condition
+    SEN = 1;
+//  Wait for the interrupt flag bit
+    while(SEN == 1 && SSPIF == 0);
+//  Clear the interrupt flag bit
+    SSPIF = 0;
+//  Write slave ID with R/W bit = 0
+    SSPBUF = slave_id;
+//  Wait for the interrupt flag bit
+    while(SSPIF == 0);
+//  Check acknowledgment from slave
+    if(!(ACKSTAT)){
+    //  Clear the interrupt flag bit
+        SSPIF = 0;
+    //  Write the address from which you want to read data
+        SSPBUF = address;
+    //  Wait for the interrupt flag bit
+        while(SSPIF == 0);
+    //  Check acknowledgment from slave
+        if(!(ACKSTAT)){
+        //  Clear the interrupt flag bit
+            SSPIF = 0;
+        //  Generate a repeated start condition
+            RSEN = 1;
+        //  Wait for the interrupt flag bit
+            while(RSEN == 1 && SSPIF == 0);
+        //  Clear the interrupt flag bit
+            SSPIF = 0;
+        //  Write the slave Id with R/W bit = 1
+            SSPBUF = slave_id+1;
+        //  Wait for the interrupt flag bit
+            while(SSPIF == 0);
+        //  Check acknowledgment from slave
+            if(!(ACKSTAT)){
+            //  Clear the interrupt flag bit
+                SSPIF = 0;
+            //  Enable I2C receive
+                RCEN  = 1;
+            //  Wait for the interrupt flag bit
+                while(RCEN == 1 && SSPIF == 0);
+            //  Copy the received data from SSPBUF
+                rx_data = SSPBUF;
+            //  Clear the interrupt flag bit
+                SSPIF = 0;
+            //  NACK (Not Acknowledge) signal
+                ACKDT = 1;
+            //  Initiate acknowledgment process
+                ACKEN = 1;
+            //  Wait for the interrupt flag bit
+                while(ACKEN == 1 && SSPIF == 0);
+            //  Clear the interrupt flag bit
+                SSPIF = 0;
+            //  Generate STOP condition
+                PEN = 1;
+            //  Wait for the interrupt flag bit
+                while(PEN == 1 && SSPIF == 0);
+            //  Clear the interrupt flag bit
+                SSPIF = 0;
+            }
+            else{
+                lcd_display("ERROR");
+            }
+        }
+        else{
+            lcd_display("ERROR");
+        }
+    }
+    else{
+        lcd_display("ERROR");
+    }
+    delay_ms(100);
+}
+void read_day(unsigned char day){
+
+    if(day == 0){
+        day = 1;
+        i2c_tx(0x03,0x01);
+    }
+    switch(day){
+        case 1:
+        lcd_display("SUNDAY  ");
+        break;
+        case 2:
+        lcd_display("MONDAY");
+        break;
+        case 3:
+        lcd_display("TUESDAY");
+        break;
+        case 4:
+        lcd_display("WEDNESDAY");
+        break;
+        case 5:
+        lcd_display("THURSDAY ");
+        break;
+        case 6:
+        lcd_display("FRIDAY  ");
+        break;
+        case 7:
+        lcd_display("SATURDAY");
+        break;
+    }
+}
+void display_time(){
+
+    lcd_command(0x80);
+    lcd_display("Time: ");
+    lcd_data(((arr_data[2]&0x30)>>4)+48);
+    lcd_data((arr_data[2]&0x0f)+48);
+    lcd_data(':');
+    lcd_data((arr_data[1]>>4)+48);
+    lcd_data((arr_data[1]&0x0f)+48);
+    lcd_data(':');
+    lcd_data((arr_data[0]>>4)+48);                 //displaying seconds on LCD
+    lcd_data((arr_data[0]&0x0f)+48);
+    lcd_command(0xc0);lcd_display("Date: ");
+    lcd_data((arr_data[4]>>4)+48);
+    lcd_data((arr_data[4]&0x0f)+48);
+    lcd_data('/');
+    lcd_data((arr_data[5]>>4)+48);
+    lcd_data((arr_data[5]&0x0f)+48);
+    lcd_data('/');
+    lcd_data((arr_data[6]>>4)+48);
+    lcd_data((arr_data[6]&0x0f)+48);
+
+    lcd_command(0x94);lcd_display("Day:  ");
+    read_day((arr_data[3]&0x07));
+}
+
+void main(){
+    unsigned char i;
+//  Making PORTD as output port for LCD
+    TRISD = 0x00;
+//  Making all pins digital
+    ADCON1 = 0x0f;
+//  Initializing LCD
+    lcd_initialize();
+//  Displaying Welcome Messages
+    lcd_display("Welcome to");
+    lcd_command(0xc3);
+    lcd_display("Innovate Logics");
+    delay_ms(5000);
+    lcd_command(0x94);
+    lcd_display("We help you");
+    lcd_command(0xde);
+    lcd_display("to Achieve");
+    delay_ms(5000);
+    lcd_command(0x01);
+//  Setting in-built I2C module
+    i2c_setup();
+//  Writing to DS3232 REGISTERS
+    i2c_tx(0x0e,0x00);
+    i2c_tx(0x0f,0x00);
+//  Writing seconds
+    i2c_tx(0x00,0x00);
+//  Writing minutes
+    i2c_tx(0x01,0x59);
+//  Writing hours
+    i2c_tx(0x02,0x23);
+//  Writing day
+    i2c_tx(0x03,0x03);
+//  Writing date
+    i2c_tx(0x04,0x31);
+//  Writing month
+    i2c_tx(0x05,0x12);
+//  Writing year
+    i2c_tx(0x06,0x13);
+    
+    while(1){
+        if(PORTE & 0x01){
+            while(i<7){
+            i2c_rx(i);
+            arr_data[i] = rx_data;
+            i++;
+            }
+            display_time();
+            i=0;
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//i2cccccc
+#include <i2c.h>
+  void main() {     
+        char result;
+ 
+    TRISC = 0x00; //turn on tri-state REGISTER and
+                   //make all output pins
+     PORTC = 0x00; //make all output pins LOW
+
+     OpenI2C( MASTER, SLEW_OFF);
+     SSPADD = 0x3F;
+
+     StartI2C();                // begin I2C communications
+         IdleI2C();
+     WriteI2C( 0xD0 );          // addresses the chip
+         IdleI2C();
+     WriteI2C( 0x01 );          // access REGISTER address for minutes
+         IdleI2C();
+     WriteI2C( 0b00010010 );    // write value into minutes REGISTER
+         IdleI2C();
+     StopI2C();                 // stop condition I2C on bus
+
+     StartI2C();                // begin I2C communications
+         IdleI2C();
+     WriteI2C( 0xD0 );          // addresses the chip
+         IdleI2C();
+     WriteI2C( 0x03 );          // access REGISTER address for day of the week
+         IdleI2C();
+     WriteI2C( 0x04 );          // write value into day REGISTER
+         IdleI2C();
+     StopI2C();                 // stop condition I2C on bus
+
+     StartI2C();                // Start condition I2C on bus
+         IdleI2C();
+     WriteI2C( 0xD0 );          // addresses the chip
+         IdleI2C();
+     WriteI2C( 0x03 );          // write REGISTER address
+         IdleI2C();
+     StopI2C();                 // Stop condition I2C on bus
+
+     StartI2C();                // Start condition I2C on bus
+         IdleI2C();
+     WriteI2C( 0xD1 );          // addresses the chip with a read bit
+         IdleI2C();
+     result = ReadI2C();        // read the value from the RTC and store in result
+         IdleI2C();
+     NotAckI2C();               // Not Acknowledge condition.
+         IdleI2C();
+     StopI2C();                 // Stop condition I2C on bus
+}
