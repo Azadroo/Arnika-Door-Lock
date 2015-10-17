@@ -1,0 +1,360 @@
+///More features will be added in the future.
+//There is no fast or SLOW time setting as in normal/simple digital clocks. In this clock, each digit of the clock display can be set one by one via 2 setting buttons.
+//Features
+//1. Bright Led 7-Segment display without Multiplexing
+//2. Display: Hour, Minute, Second
+//3. Set time via 2 buttons
+//4. Set time Digit by Digit
+//5. Use internal oscillator of PIC16F627a or PIC16F628
+//6. Use 32.768KHz crystal for better clock accuracy
+
+
+//Setting Time:
+//1. The clock shows 12:34:56 when power the clock on. The first digit of hour (it's number 1 in this case) will be blinking to notify that the time is not correct and need to be set.
+//2. Press SET button to count up the digit.
+//3. Press MODE button when the digit is the correct time. The next digit will be blinking.
+//4. Repeat step 2 and 3 for setting minute and second.
+//5. Make sure that pressing MODE button for setting the second digit of second at the correct time.
+
+
+
+
+/6 digit  clock 
+//Using timer1 16bit counter interrupt 
+// PIC16F627A or PIC18F45k80
+// Internal Clock 4MHz 
+// PUNKKY@gmail.com 
+#define MODE PORTB.F4 
+#define SET PORTB.F5 
+#define Sec_port_l PORTA.F6 
+#define Sec_port_h PORTA.F4 
+#define Min_port_l PORTA.F3 
+#define Min_port_h PORTA.F2 
+#define Hr_port_l PORTA.F1 
+#define Hr_port_h PORTA.F0 
+#define Blink PORTA.F7 
+#define HTMR1 0x80 
+#define LTMR1 0x00 
+typedef unsigned short uns8; 
+uns8 i; 
+uns8 hr_h; 
+uns8 hr_l; 
+uns8 min_h; 
+uns8 min_l; 
+uns8 sec_h; 
+uns8 sec_l; 
+uns8 tick; 
+uns8 myTimer; 
+uns8 setting_time; 
+void setup (); 
+void set_time (); 
+void show_time (); 
+void display (uns8 digit); 
+void blink_digit (uns8 digit); 
+void check_bt (); 
+
+//void check_bt(); //chech button 
+void interrupt () 
+{ 
+        PIR1.TMR1IF = 0; 
+        // clears TMR1IF 
+        TMR1H = HTMR1; 
+        tick = 1; 
+        Blink = 1; 
+        sec_l ++; 
+        if(sec_l>9){ 
+            sec_l = 0; 
+            sec_h++; 
+        } 
+        if(sec_h>5){ 
+            sec_h=0; 
+            min_l++; 
+        } 
+        if(min_l>9){ 
+            min_l = 0; 
+            min_h++; 
+        } 
+        if(min_h>5){ 
+            min_h = 0; 
+            hr_l++; 
+        } 
+        if(hr_l>9){ 
+            hr_l = 0; 
+            hr_h++; 
+        } 
+        if(hr_h >2){ 
+            hr_h = 0; 
+        } 
+        if(hr_h >=2 && hr_l>3){ 
+           hr_h = 0; 
+           hr_l = 0; 
+        } 
+} 
+void main () 
+{ 
+        setup (); 
+         
+        //Set time 
+        hr_h = 1; 
+        hr_l = 2; 
+        min_h = 3; 
+        min_l = 4; 
+        sec_h = 5; 
+        sec_l = 6; 
+        show_time (); 
+        setting_time = 1; 
+        set_time(); 
+        while (1) 
+        { 
+                //blink_digit(); 
+                if (tick) 
+                { 
+                        tick = 0; 
+                        show_time (); 
+                        Delay_ms (300); 
+                        Blink = 0; 
+                } 
+                check_bt (); 
+        } 
+} 
+void setup () 
+{ 
+        tick = 0; 
+//Digital output on PORTA 
+        CMCON = 0x07; 
+        //Input buttons + external clock 
+        TRISB = 0xB0; 
+
+        PORTB = 0x00; 
+        TRISA = 0x00; 
+        PORTA = 0x00; 
+        //Internal Clock 4MHz 
+        PCON.OSCF = 1; 
+        // Prescaler 1:1   external clock 
+        T1CON = 0x0F; 
+
+        PIE1.TMR1IE = 0;  // disable interupt to stop the clock 
+
+        INTCON = 0xC0; 
+        // Set GIE, PEIE 
+        TMR1L = LTMR1; 
+        TMR1H = HTMR1; 
+        // TMR1 starts at 0x0BDC = 3036 to make TMR1 counts to 62500 and 
+        // overclows in every 0.1 sec 
+        // Math: 1/500000*8*62500 = 0.1 
+        // 1/5000000 : time for 20MHz crystal (internal clock will be 20/4 = 5MHz) 
+        // 8: prescaler 
+        // 62500: TMR1 counts to 62500 
+        // Counting number of overflows to 10 will get 1 sec. 
+
+} 
+
+void show_time () 
+{ 
+        display (1); 
+        display (2); 
+        display (3); 
+        display (4); 
+        display (5); 
+        display (6); 
+} 
+void display (uns8 digit) 
+{ 
+        switch (digit) 
+        { 
+                case 1 : 
+                PORTB = hr_h; 
+                Hr_port_h = 1; 
+                Hr_port_h = 0; 
+                break; 
+                case 2 : 
+                PORTB = hr_l; 
+                Hr_port_l = 1; 
+                Hr_port_l = 0; 
+                break; 
+                case 3 : 
+                PORTB = min_h; 
+                Min_port_h = 1; 
+                Min_port_h = 0; 
+                break; 
+                case 4 : 
+                PORTB = min_l; 
+                Min_port_l = 1; 
+                Min_port_l = 0; 
+                break; 
+                case 5 : 
+                PORTB = sec_h; 
+                Sec_port_h = 1; 
+                Sec_port_h = 0; 
+                break; 
+                case 6 : 
+                PORTB = sec_l; 
+                Sec_port_l = 1; 
+                Sec_port_l = 0; 
+                break; 
+        } 
+} 
+void blink_digit (uns8 digit) 
+{ 
+        switch (digit) 
+        { 
+                case 1 : 
+                PORTB = 0xFF; 
+                Hr_port_h = 1; 
+                Hr_port_h = 0; 
+                Delay_ms (100); 
+                display (1); 
+                Delay_ms (100); 
+                break; 
+                case 2 : 
+                PORTB = 0xFF; 
+                Hr_port_l = 1; 
+                Hr_port_l = 0; 
+                Delay_ms (100); 
+                display (2); 
+                Delay_ms (100); 
+                break; 
+                case 3 : 
+                PORTB = 0xFF; 
+                Min_port_h = 1; 
+                Min_port_h = 0; 
+                Delay_ms (100); 
+                display (3); 
+                Delay_ms (100); 
+                break; 
+                case 4 : 
+                PORTB = 0xFF; 
+                Min_port_l = 1; 
+                Min_port_l = 0; 
+                Delay_ms (100); 
+                display (4); 
+                Delay_ms (100); 
+                break; 
+                case 5 : 
+                PORTB = 0xFF; 
+                Sec_port_h = 1; 
+                Sec_port_h = 0; 
+                Delay_ms (100); 
+                display (5); 
+                Delay_ms (100); 
+                break; 
+                case 6 : 
+                PORTB = 0xFF; 
+                Sec_port_l = 1; 
+                Sec_port_l = 0; 
+                Delay_ms (100); 
+                display (6); 
+                Delay_ms (100); 
+                break; 
+        } 
+} 
+void set_time () 
+{ 
+
+        i = 1; 
+        while (setting_time) 
+        { 
+                blink_digit (i); 
+                while (SET == 0) 
+                { 
+                        Delay_ms (5); 
+                        switch (i) 
+                        { 
+                                case 1 : 
+                                hr_h ++; 
+                                if (hr_h > 2) 
+                                { 
+                                        hr_h = 0; 
+                                } 
+                                break; 
+                                case 2 : 
+                                hr_l ++; 
+                                if (hr_l > 9) 
+                                { 
+                                        hr_l = 0; 
+                                } 
+                                if (hr_h >= 2 && hr_l > 3) 
+                                { 
+                                        hr_l = 0; 
+                                } 
+                                break; 
+                                case 3 : 
+                                min_h ++; 
+                                if (min_h > 5) 
+                                { 
+                                        min_h = 0; 
+                                } 
+                                break; 
+                                case 4 : 
+                                min_l ++; 
+                                if (min_l > 9) 
+                                { 
+                                        min_l = 0; 
+                                } 
+                                break; 
+                                case 5 : 
+                                sec_h ++; 
+                                if (sec_h > 5) 
+                                { 
+                                        sec_h = 0; 
+                                } 
+                                break; 
+                                case 6 : 
+                                sec_l ++; 
+                                if (sec_l > 9) 
+                                { 
+                                        sec_l = 0; 
+                                } 
+                                break; 
+                        } 
+                        while (SET == 0) 
+                        { 
+                                Delay_ms (5); 
+                        } 
+                } 
+                while (MODE == 0) 
+                { 
+                        Delay_ms (5); 
+                        i ++; 
+                        if (i > 6) 
+                        { 
+        sec_l--; 
+        TMR1H = 0x80; 
+        TMR1L = 0x00; 
+        PIE1.TMR1IE = 1; 
+        setting_time = 0; 
+                                break; 
+                        } 
+                        while (MODE == 0) 
+                        { 
+                                Delay_ms (5); 
+                        } 
+                } 
+        } 
+} 
+void check_bt () 
+{ 
+        myTimer = 0; 
+        if (setting_time == 0) 
+        { 
+                while (MODE == 0) 
+                { 
+                        Delay_ms (5); 
+                        myTimer ++; 
+                        if (myTimer > 200) 
+                        { 
+                                setting_time = 1; 
+                                myTimer = 0; 
+                                break; 
+                        } 
+                } 
+        } 
+        while (MODE == 0) 
+        { 
+                PIE1.TMR1IE = 0; 
+                //Stop clock 
+                Delay_ms (5); 
+                blink_digit (1); 
+        } 
+        set_time (); 
+} 
