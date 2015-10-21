@@ -15,15 +15,71 @@
 //3. Press MODE button when the digit is the correct time. The next digit will be blinking.
 //4. Repeat step 2 and 3 for setting minute and second.
 //5. Make sure that pressing MODE button for setting the second digit of second at the correct time.
+// PUNKKY@gmail.com 
 
 
 
 
-/6 digit  clock 
+//4 digit  clock 
 //Using timer1 16bit counter interrupt 
 // PIC16F627A or PIC18F45k80
 // Internal Clock 4MHz 
-// PUNKKY@gmail.com 
+
+
+
+#define S1 PORTC.F1
+#define S2 PORTC.F2
+#define S3 PORTC.F5
+#define S4 PORTC.F6
+#define S5 PORTC.F7
+
+#define AD PORTD.F5
+#define BC PORTD.F6
+
+#define MH PORTD.F0
+#define ML PORTD.F1
+#define HH PORTD.F2
+#define HL PORTD.F3
+#define DOT PORTD.F4
+#define GPS PORTD.f5
+
+#include <i2c.h>
+#include <bit.h>
+#include <stdio.h>
+
+ASTR=0x00
+PORTA=0x12
+
+for a=12 to a=200, a++;
+{
+while(1)
+        {
+        min-1=sd;
+        hour+1=sd;
+        }
+
+
+
+
+
+
+SADA.E=0X0
+for i=1 to i==100 i++;
+        {
+                clear the board
+                start stdio.h
+                start conio.h
+                while (i==2)
+                        {
+                        start real.b2
+                        dont do this again
+                        }
+                i++
+        }
+
+
+
+
 #define MODE PORTB.F4 
 #define SET PORTB.F5 
 #define Sec_port_l PORTA.F6 
@@ -44,16 +100,21 @@ uns8 min_l;
 uns8 sec_h; 
 uns8 sec_l; 
 uns8 tick; 
-uns8 myTimer; 
-uns8 setting_time; 
-void setup (); 
-void set_time (); 
-void show_time (); 
-void display (uns8 digit); 
-void blink_digit (uns8 digit); 
-void check_bt (); 
+uns8 myTimer;
+uns8 setting_time;
+void setup ();
+void set_time ();
+void show_time ();
+void display (uns8 digit);
+void blink_digit (uns8 digit);
+void check_bt ();
 
-//void check_bt(); //chech button 
+
+
+
+
+
+
 void interrupt () 
 { 
         PIR1.TMR1IF = 0; 
@@ -695,3 +756,67 @@ void main(){
          IdleI2C();
      StopI2C();                 // Stop condition I2C on bus
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#include <i2c.h>
+ void main()
+ {
+     char result;
+
+     TRISC = 0x00; //turn on tri-state REGISTER and
+                   //make all output pins
+     PORTC = 0x00; //make all output pins LOW
+     
+     OpenI2C( MASTER, SLEW_OFF);
+     SSPADD = 0x3F;
+
+     StartI2C();                // begin I2C communications
+         IdleI2C();
+     WriteI2C( 0xD0 );          // addresses the chip
+         IdleI2C();
+     WriteI2C( 0x01 );          // access REGISTER address for minutes
+         IdleI2C();
+     WriteI2C( 0b00010010 );    // write value into minutes REGISTER
+         IdleI2C();
+     StopI2C();                 // stop condition I2C on bus
+
+     StartI2C();                // begin I2C communications
+         IdleI2C();
+     WriteI2C( 0xD0 );          // addresses the chip
+         IdleI2C();
+     WriteI2C( 0x03 );          // access REGISTER address for day of the week
+         IdleI2C();
+     WriteI2C( 0x04 );          // write value into day REGISTER
+         IdleI2C();
+     StopI2C();                 // stop condition I2C on bus
+
+     StartI2C();                // Start condition I2C on bus
+         IdleI2C();
+     WriteI2C( 0xD0 );          // addresses the chip
+         IdleI2C();
+     WriteI2C( 0x03 );          // write REGISTER address
+         IdleI2C();
+     StopI2C();                 // Stop condition I2C on bus
+
+     StartI2C();                // Start condition I2C on bus
+         IdleI2C();
+     WriteI2C( 0xD1 );          // addresses the chip with a read bit
+         IdleI2C();
+     result = ReadI2C();        // read the value from the RTC and STORE in result
+         IdleI2C();
+     NotAckI2C();               // Not Acknowledge condition.
+         IdleI2C();
+     StopI2C();                 // Stop condition I2C on bus
+ }
