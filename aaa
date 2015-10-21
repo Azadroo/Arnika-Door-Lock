@@ -309,6 +309,8 @@ void blink_digit (uns8 digit)
                 break; 
         } 
 } 
+
+
 void set_time () 
 { 
 
@@ -756,67 +758,3 @@ void main(){
          IdleI2C();
      StopI2C();                 // Stop condition I2C on bus
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#include <i2c.h>
- void main()
- {
-     char result;
-
-     TRISC = 0x00; //turn on tri-state REGISTER and
-                   //make all output pins
-     PORTC = 0x00; //make all output pins LOW
-     
-     OpenI2C( MASTER, SLEW_OFF);
-     SSPADD = 0x3F;
-
-     StartI2C();                // begin I2C communications
-         IdleI2C();
-     WriteI2C( 0xD0 );          // addresses the chip
-         IdleI2C();
-     WriteI2C( 0x01 );          // access REGISTER address for minutes
-         IdleI2C();
-     WriteI2C( 0b00010010 );    // write value into minutes REGISTER
-         IdleI2C();
-     StopI2C();                 // stop condition I2C on bus
-
-     StartI2C();                // begin I2C communications
-         IdleI2C();
-     WriteI2C( 0xD0 );          // addresses the chip
-         IdleI2C();
-     WriteI2C( 0x03 );          // access REGISTER address for day of the week
-         IdleI2C();
-     WriteI2C( 0x04 );          // write value into day REGISTER
-         IdleI2C();
-     StopI2C();                 // stop condition I2C on bus
-
-     StartI2C();                // Start condition I2C on bus
-         IdleI2C();
-     WriteI2C( 0xD0 );          // addresses the chip
-         IdleI2C();
-     WriteI2C( 0x03 );          // write REGISTER address
-         IdleI2C();
-     StopI2C();                 // Stop condition I2C on bus
-
-     StartI2C();                // Start condition I2C on bus
-         IdleI2C();
-     WriteI2C( 0xD1 );          // addresses the chip with a read bit
-         IdleI2C();
-     result = ReadI2C();        // read the value from the RTC and STORE in result
-         IdleI2C();
-     NotAckI2C();               // Not Acknowledge condition.
-         IdleI2C();
-     StopI2C();                 // Stop condition I2C on bus
- }
